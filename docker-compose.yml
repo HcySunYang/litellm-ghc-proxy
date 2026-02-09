@@ -10,7 +10,7 @@ services:
     container_name: litellm-proxy
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4000:4000"
+      - "80:4000"
     environment:
       - LOG_LEVEL=INFO
       - ENABLE_NETWORK_MONITOR=true
