@@ -70,6 +70,19 @@ model_list:
     litellm_params:
       model: github_copilot/claude-opus-4.6
       extra_headers: {"Editor-Version": "vscode/1.109.0", "Copilot-Integration-Id": "copilot-chat"}
+    # Claude Opus 4.6 (Anthropic) - enabled
+    # Max tokens: 64000, Context: 200000
+
+  # Aliases for Claude Code client (uses hyphen format)
+  - model_name: claude-opus-4-6
+    litellm_params:
+      model: github_copilot/claude-opus-4.6
+      extra_headers: {"Editor-Version": "vscode/1.109.0", "Copilot-Integration-Id": "copilot-chat"}
+
+  - model_name: claude-haiku-4-5-20251001
+    litellm_params:
+      model: github_copilot/claude-haiku-4.5
+      extra_headers: {"Editor-Version": "vscode/1.109.0", "Copilot-Integration-Id": "copilot-chat"}
 
   - model_name: claude-opus-41
     litellm_params:
