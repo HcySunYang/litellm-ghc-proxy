@@ -45,7 +45,7 @@ jq -r '.data[] | select(.capabilities.type == "chat") | '"$FILTER"' |
 "  - model_name: " + .id + "
     litellm_params:
       model: github_copilot/" + .id + "
-      extra_headers: {\"Editor-Version\": \"vscode/1.109.0\", \"Copilot-Integration-Id\": \"copilot-chat\"}
+      extra_headers: {\"Editor-Version\": \"vscode/1.109.2\", \"Copilot-Integration-Id\": \"copilot-chat\"}
     # " + .name + " (" + .vendor + ") - " + (.policy.state // "enabled") + "
     # Max tokens: " + (.capabilities.limits.max_output_tokens | tostring) + ", Context: " + (.capabilities.limits.max_context_window_tokens | tostring) + "
 "'
