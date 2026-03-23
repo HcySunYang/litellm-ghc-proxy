@@ -5,18 +5,39 @@ networks:
     driver: bridge
 
 services:
+  middleware:
+    build: ./middleware
+    container_name: litellm-middleware
+    restart: unless-stopped
+    ports:
+      - "80:5000"
+    environment:
+      - LITELLM_URL=http://ghc-proxy:4000
+      - SEARXNG_URL=http://searxng:8080
+      - LOG_LEVEL=INFO
+      - MAX_TOOL_ROUNDS=10
+      - PROXY_TIMEOUT=300
+      - MAX_SEARCH_RESULTS=10
+      - FETCH_TIMEOUT=30
+    depends_on:
+      - ghc-proxy
+      - searxng
+    networks:
+      - litellm-net
+
   ghc-proxy:
     image: litellm/litellm:v1.81.3-stable
     container_name: litellm-proxy
     restart: unless-stopped
-    ports:
-      - "80:4000"
+    expose:
+      - "4000"
     environment:
       - LOG_LEVEL=INFO
       - ENABLE_NETWORK_MONITOR=true
       - DOCS_URL=/docs
       - ROOT_REDIRECT_URL=/ui
       - STORE_MODEL_IN_DB=true
+      - PROXY_BASE_URL=http://20.89.181.138
     env_file:
       - .env
     volumes:
@@ -26,6 +47,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - litellm-net
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: litellm-searxng
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    volumes:
+      - ./conf/searxng/settings.yml:/etc/searxng/settings.yml
+      - ./conf/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
     networks:
       - litellm-net
 
