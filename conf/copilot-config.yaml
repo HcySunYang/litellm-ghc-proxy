@@ -37,8 +37,9 @@ model_list:
 
   - model_name: claude-opus-4-6
     litellm_params:
-      model: github_copilot/claude-opus-4.6
+      model: github_copilot/claude-opus-4.6-1m
       extra_headers: {"Copilot-Integration-Id": "copilot-developer-cli", "X-GitHub-Api-Version": "2025-05-01", "Openai-Intent": "conversation-agent"}
+    # Alias: Claude Code sends "claude-opus-4-6" when configured with opus[1m]
 
   - model_name: claude-opus-4.5
     litellm_params:
