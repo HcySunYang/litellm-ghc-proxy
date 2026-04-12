@@ -26,11 +26,11 @@ services:
       - litellm-net
 
   ghc-proxy:
-    image: litellm/litellm:v1.81.3-stable
+    image: litellm/litellm:v1.82.3-stable
     container_name: litellm-proxy
     restart: unless-stopped
-    expose:
-      - "4000"
+    ports:
+      - "4000:4000"
     environment:
       - LOG_LEVEL=INFO
       - ENABLE_NETWORK_MONITOR=true

@@ -156,9 +156,11 @@ model_list:
     litellm_params:
       model: github_copilot/claude-sonnet-4
       extra_headers:
-        Editor-Version: "vscode/1.109.0"
-        Copilot-Integration-Id: "copilot-chat"
+        copilot-integration-id: "copilot-chat"
+        x-github-api-version: "2025-05-01"
 ```
+
+> **重要:** `extra_headers` 中的 header 名必须使用**小写**（如 `copilot-integration-id`），以正确覆盖 LiteLLM 内部默认值。大小写不一致会导致发送重复 header，引发 API 错误。
 
 运行 `./list-copilot-models.sh` 可查看所有可用模型及其参数，将需要的模型复制到配置文件中。修改后重启服务生效：
 
@@ -183,8 +185,55 @@ docker compose restart ghc-proxy
     └── postgres/               # PostgreSQL 数据
 ```
 
+## 使用 OpenAI Codex CLI
+
+除了 Claude Code，本项目也支持 [OpenAI Codex CLI](https://github.com/openai/codex) 通过同一个代理访问模型。
+
+### 1. 安装 Codex CLI
+
+```bash
+npm install -g @openai/codex
+# 或
+brew install --cask codex
+```
+
+### 2. 配置环境变量
+
+将 LiteLLM Master Key 设为环境变量（添加到 `~/.bashrc` 或 `~/.zshrc`）：
+
+```bash
+export LITELLM_API_KEY="<你的 LITELLM_MASTER_KEY>"
+```
+
+### 3. 配置 Codex
+
+创建或编辑 `~/.codex/config.toml`：
+
+```toml
+model = "gpt-5.2-codex"
+model_provider = "litellm-proxy"
+
+[model_providers.litellm-proxy]
+name = "LiteLLM GitHub Copilot Proxy"
+base_url = "http://<服务器IP>:4000"
+env_key = "LITELLM_API_KEY"
+wire_api = "responses"
+```
+
+> `model` 可替换为 `copilot-config.yaml` 中的任何模型名，如 `gpt-5.4`、`gpt-5.3-codex`、`claude-sonnet-4` 等。
+
+> 如果代理运行在云服务器上（如 Azure VM），需要在安全组/防火墙中放行 **TCP 4000** 端口。
+
+### 4. 启动 Codex
+
+```bash
+codex
+```
+
+> Codex CLI 直接连接 LiteLLM（端口 4000），不经过中间件。Claude Code 仍通过中间件（端口 80）使用，互不影响。
+
 ## 注意事项
 
-- 服务默认仅监听 `127.0.0.1:4000`，只能本机访问。如需对外暴露，请修改 `docker-compose.yml` 中的端口绑定
+- 服务默认监听 `0.0.0.0`。端口 80 为中间件（Claude Code 使用），端口 4000 为 LiteLLM 直连（Codex CLI 使用）。云服务器部署时，请在安全组中按需放行端口，并确保使用强密钥
 - `.env` 和 `litellm-data/` 包含敏感信息，已在 `.gitignore` 中排除
 - GitHub Copilot token 会过期，过期后重启服务会自动触发重新认证
