@@ -27,6 +27,18 @@ model_list:
       model: github_copilot/claude-opus-4.6-1m
       extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
+  # Claude Code's model picker only lists Opus 4.7 1M, but GHC does not yet
+  # offer a 1M-context variant of 4.7 — map the 4.7 1M aliases to 4.6 1M.
+  - model_name: claude-opus-4-7-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.6-1m
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: claude-opus-4.7-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.6-1m
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
   # ── Claude Models ──────────────────────────────────────────
   - model_name: claude-opus-4.7
     litellm_params:
