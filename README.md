@@ -6,7 +6,7 @@
 
 | 厂商 | 模型 |
 |------|------|
-| **Anthropic** | Claude Opus 4.6 / 4.5 / 4.1, Claude Sonnet 4.5 / 4, Claude Haiku 4.5 |
+| **Anthropic** | Claude Opus 4.7 / 4.6 / 4.5 / 4.1, Claude Sonnet 4.6 / 4.5 / 4, Claude Haiku 4.5 |
 | **OpenAI** | GPT-5.2 / 5.1 / 5 / 5-mini, GPT-5.1-Codex / Codex-Max, GPT-5.2-Codex, GPT-4.1 / 4o / 4o-mini / 4, GPT-3.5-turbo |
 | **Google** | Gemini 2.5 Pro |
 
