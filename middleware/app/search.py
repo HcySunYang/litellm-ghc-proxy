@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://searxng:8080")
 SEARCH_TIMEOUT = float(os.environ.get("SEARCH_TIMEOUT", "15"))
 MAX_RESULTS = int(os.environ.get("MAX_SEARCH_RESULTS", "10"))
+# Comma-separated SearXNG categories. Including "news" surfaces fresh content
+# for time-sensitive queries (stock prices, weather, breaking news) which the
+# "general" category alone often misses.
+SEARCH_CATEGORIES = os.environ.get("SEARCH_CATEGORIES", "general,news")
 
 
 async def search(query: str) -> list[dict[str, Any]]:
@@ -31,7 +35,7 @@ async def search(query: str) -> list[dict[str, Any]]:
     params = {
         "q": query,
         "format": "json",
-        "categories": "general",
+        "categories": SEARCH_CATEGORIES,
     }
 
     try:
