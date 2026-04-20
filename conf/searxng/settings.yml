@@ -60,7 +60,7 @@ ui:
   hotkeys: default
   url_formatting: pretty
 outgoing:
-  request_timeout: 3.0
+  request_timeout: 10.0
   useragent_suffix: ''
   pool_connections: 100
   pool_maxsize: 20
@@ -279,7 +279,6 @@ engines:
 - name: bing
   engine: bing
   shortcut: bi
-  disabled: true
 - name: bing images
   engine: bing_images
   shortcut: bii
