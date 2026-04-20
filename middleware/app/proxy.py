@@ -14,6 +14,10 @@ import httpx
 
 from . import search as search_module
 from . import fetch as fetch_module
+from .converters import (
+    anthropic_request_to_openai,
+    openai_response_to_anthropic,
+)
 from .tools import (
     extract_server_tools,
     inject_regular_tools,
@@ -86,10 +90,15 @@ async def proxy_messages_with_tools(
     4. Convert final response to server-side tool format
 
     Returns the final response dict in Anthropic format.
+
+    NOTE: We drive the loop against LiteLLM's `/chat/completions` endpoint instead
+    of `/v1/messages` because v1.82.3 silently drops the `tools` array when
+    proxying to `github_copilot/*` models on the Messages surface. Externally we
+    still speak the Anthropic Messages API; conversion happens here.
     """
     body = copy.deepcopy(request_body)
 
-    # Step 1: Extract and replace server-side tools
+    # Step 1: Extract and replace server-side tools (still in Anthropic shape)
     tools = body.get("tools", [])
     remaining_tools, server_tools = extract_server_tools(tools)
     body["tools"] = inject_regular_tools(remaining_tools, server_tools)
@@ -97,28 +106,40 @@ async def proxy_messages_with_tools(
     # Force non-streaming for the agentic loop
     body["stream"] = False
 
+    # Translate the entire Anthropic request to OpenAI shape once.
+    oai_body = anthropic_request_to_openai(body)
+    oai_body["stream"] = False
+
     # Accumulate server_tool_use + web_search_tool_result blocks from
     # intermediate rounds so they appear in the final response.
     # Claude Code needs to see these to display "Did N searches".
     accumulated_blocks: list[dict[str, Any]] = []
 
-    messages = body.get("messages", [])
+    resp: dict[str, Any] | None = None
 
     for round_num in range(MAX_TOOL_ROUNDS):
         logger.info(f"Agentic loop round {round_num + 1}/{MAX_TOOL_ROUNDS}")
 
-        # Forward to LiteLLM
-        body["messages"] = messages
-        resp = await _forward_json(body, headers)
+        # Forward to LiteLLM /chat/completions
+        oai_resp = await _forward_chat_completions(oai_body, headers)
 
-        if resp is None:
+        if oai_resp is None:
             return _error_response("Failed to get response from LiteLLM")
 
-        # Check if the model wants to use web tools
+        # If the upstream returned an OpenAI-shape error (no `choices`), surface it.
+        if "choices" not in oai_resp:
+            err_msg = (
+                oai_resp.get("error", {}).get("message")
+                if isinstance(oai_resp.get("error"), dict)
+                else str(oai_resp)[:500]
+            )
+            logger.error(f"Upstream error from /chat/completions: {err_msg}")
+            return _error_response(err_msg or "Upstream error")
+
+        # Convert to Anthropic format so existing block-handling logic applies.
+        resp = openai_response_to_anthropic(oai_resp)
+
         content = resp.get("content") or []
-        if not isinstance(content, list):
-            # Malformed response (e.g. error from LiteLLM) — return as-is
-            return resp
         tool_calls = [b for b in content if is_web_tool_call(b)]
 
         if not tool_calls:
@@ -127,8 +148,12 @@ async def proxy_messages_with_tools(
             resp["content"] = accumulated_blocks + content
             return resp
 
+        # Pick out the original OpenAI assistant message so we can echo it
+        # verbatim back into the conversation (preserves tool_call IDs).
+        oai_assistant_msg = _extract_assistant_message(oai_resp)
+        oai_body["messages"].append(oai_assistant_msg)
+
         # Execute tool calls
-        tool_result_messages = []
         for tc in tool_calls:
             tool_id = tc["id"]
             tool_name = tc["name"]
@@ -145,19 +170,11 @@ async def proxy_messages_with_tools(
                 accumulated_blocks.append(convert_tool_use_to_server_format(tc))
                 accumulated_blocks.append(result_block)
 
-                # Build tool_result message for the next round
-                # Format results as text for the model
+                # Build OpenAI-style tool result message for the next round
                 result_text = _format_search_results(results)
-                tool_result_messages.append({
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": tool_id,
-                            "content": result_text,
-                        }
-                    ],
-                })
+                oai_body["messages"].append(
+                    {"role": "tool", "tool_call_id": tool_id, "content": result_text}
+                )
 
             elif tool_name == "web_fetch":
                 url = tool_input.get("url", "")
@@ -171,21 +188,13 @@ async def proxy_messages_with_tools(
                 accumulated_blocks.append(convert_tool_use_to_server_format(tc))
                 accumulated_blocks.append(result_block)
 
-                tool_result_messages.append({
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": tool_id,
-                            "content": fetch_result["content"][:50000],  # Limit context
-                        }
-                    ],
-                })
-
-        # Add assistant message with tool calls + user message with results
-        messages.append({"role": "assistant", "content": content})
-        for trm in tool_result_messages:
-            messages.append(trm)
+                oai_body["messages"].append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": fetch_result["content"][:50000],
+                    }
+                )
 
     # Max rounds exceeded
     logger.warning(f"Agentic loop exceeded {MAX_TOOL_ROUNDS} rounds")
@@ -196,12 +205,101 @@ async def proxy_messages_with_tools(
     return _error_response("Agentic loop exceeded maximum rounds")
 
 
+def _extract_assistant_message(oai_resp: dict[str, Any]) -> dict[str, Any]:
+    """Return the OpenAI assistant message we should echo back to continue the loop.
+
+    Mirrors converters._pick_choice: prefer the choice with tool_calls so we keep
+    matching tool_call_ids when posting tool results in the next round.
+    """
+    choices = oai_resp.get("choices") or []
+    chosen = None
+    for c in choices:
+        msg = c.get("message") or {}
+        if msg.get("tool_calls"):
+            chosen = msg
+            break
+    if chosen is None:
+        for c in choices:
+            msg = c.get("message") or {}
+            if msg.get("content"):
+                chosen = msg
+                break
+    if chosen is None and choices:
+        chosen = choices[0].get("message") or {}
+    if chosen is None:
+        return {"role": "assistant", "content": ""}
+    # Strip non-standard provider fields that some upstreams add.
+    out: dict[str, Any] = {"role": "assistant"}
+    if chosen.get("content") is not None:
+        out["content"] = chosen.get("content")
+    else:
+        out["content"] = None
+    if chosen.get("tool_calls"):
+        out["tool_calls"] = [
+            {
+                "id": tc.get("id", ""),
+                "type": tc.get("type", "function"),
+                "function": {
+                    "name": (tc.get("function") or {}).get("name", ""),
+                    "arguments": (tc.get("function") or {}).get("arguments", "{}"),
+                },
+            }
+            for tc in chosen["tool_calls"]
+        ]
+    return out
+
+
+async def _forward_chat_completions(
+    body: dict[str, Any], headers: dict[str, str]
+) -> dict[str, Any] | None:
+    """Forward a JSON request to LiteLLM /chat/completions and return parsed JSON."""
+    url = f"{LITELLM_URL}/chat/completions"
+
+    forward_headers = {
+        k: v
+        for k, v in headers.items()
+        if k.lower()
+        not in (
+            "host",
+            "transfer-encoding",
+            "connection",
+            "content-length",
+            "anthropic-version",
+            "anthropic-beta",
+            "content-type",
+        )
+    }
+    forward_headers["content-type"] = "application/json"
+
+    try:
+        async with httpx.AsyncClient(timeout=PROXY_TIMEOUT) as client:
+            resp = await client.post(url, json=body, headers=forward_headers)
+
+            if resp.status_code != 200:
+                logger.error(
+                    f"LiteLLM /chat/completions returned {resp.status_code}: {resp.text[:500]}"
+                )
+                try:
+                    return resp.json()
+                except Exception:
+                    return _error_response(
+                        f"LiteLLM returned HTTP {resp.status_code}: {resp.text[:200]}"
+                    )
+
+            return resp.json()
+    except Exception as e:
+        logger.error(f"Failed to forward to LiteLLM /chat/completions: {e}")
+        return None
+
+
 async def _forward_json(
     body: dict[str, Any], headers: dict[str, str]
 ) -> dict[str, Any] | None:
-    """Forward a JSON request to LiteLLM and return the parsed response."""
-    import json
+    """[Deprecated] Forward a JSON request to LiteLLM /v1/messages.
 
+    Retained for any future passthrough callers; the agentic loop no longer uses
+    this because /v1/messages drops `tools` when targeting `github_copilot/*`.
+    """
     url = f"{LITELLM_URL}/v1/messages"
 
     forward_headers = {
