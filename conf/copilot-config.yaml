@@ -187,6 +187,13 @@ model_list:
     # GPT-5.4 mini (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
+  - model_name: gpt-5.5
+    litellm_params:
+      model: github_copilot/gpt-5.5
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+    # GPT-5.5 (OpenAI) - enabled
+    # Max tokens: 128000, Context: 400000
+
   - model_name: gpt-4.1
     litellm_params:
       model: github_copilot/gpt-4.1
