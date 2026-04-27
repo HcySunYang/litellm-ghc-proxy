@@ -40,18 +40,21 @@ model_list:
       extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   # ── Claude Models ──────────────────────────────────────────
+  # Claude Code's model picker only exposes Opus 4.7, but GitHub Copilot does
+  # not yet offer a 1M-context variant of 4.7. Users who want a long-context
+  # Opus need 4.6 1M, so we route ALL `claude-opus-4-7` / `claude-opus-4.7`
+  # aliases (with or without the `-1m` / `[1m]` suffix) to `claude-opus-4.6-1m`.
+  # Claude Code 2.1.x strips the `[1m]` suffix before sending, so the dotted/
+  # dashed names below are the only ones the proxy actually receives.
   - model_name: claude-opus-4.7
     litellm_params:
-      model: github_copilot/claude-opus-4.7
+      model: github_copilot/claude-opus-4.6-1m
       extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-    # Claude Opus 4.7 (Anthropic) - enabled
-    # Max tokens: 32000, Context: 200000
 
   - model_name: claude-opus-4-7
     litellm_params:
-      model: github_copilot/claude-opus-4.7
+      model: github_copilot/claude-opus-4.6-1m
       extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-    # Alias: Claude Code sends "claude-opus-4-7"
 
   - model_name: claude-opus-4.6
     litellm_params:
