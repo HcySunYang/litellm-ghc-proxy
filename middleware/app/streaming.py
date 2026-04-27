@@ -26,6 +26,11 @@ async def synthesize_sse_events(
     - message_stop
     """
     # 1. message_start
+    # We have the real input_tokens here (the agentic loop runs upstream
+    # non-streaming and waits for the final usage), so emit it now rather
+    # than 0 — Claude Code's HUD reads message_start.usage to size the
+    # context indicator.
+    src_usage = response.get("usage", {}) or {}
     msg_start = {
         "type": "message_start",
         "message": {
@@ -37,8 +42,10 @@ async def synthesize_sse_events(
             "stop_reason": None,
             "stop_sequence": None,
             "usage": {
-                "input_tokens": response.get("usage", {}).get("input_tokens", 0),
+                "input_tokens": src_usage.get("input_tokens", 0),
                 "output_tokens": 0,
+                "cache_creation_input_tokens": src_usage.get("cache_creation_input_tokens", 0),
+                "cache_read_input_tokens": src_usage.get("cache_read_input_tokens", 0),
             },
         },
     }
@@ -170,7 +177,10 @@ async def synthesize_sse_events(
             "stop_sequence": response.get("stop_sequence"),
         },
         "usage": {
-            "output_tokens": response.get("usage", {}).get("output_tokens", 0),
+            "input_tokens": src_usage.get("input_tokens", 0),
+            "output_tokens": src_usage.get("output_tokens", 0),
+            "cache_creation_input_tokens": src_usage.get("cache_creation_input_tokens", 0),
+            "cache_read_input_tokens": src_usage.get("cache_read_input_tokens", 0),
         },
     })
 

@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse, StreamingResponse, Response
 from .tools import extract_server_tools, SERVER_TOOL_PATTERNS
 from .proxy import forward_to_litellm, proxy_messages_with_tools, LITELLM_URL
 from .streaming import synthesize_sse_events
+from .usage import normalize_anthropic_usage, rewrite_sse_stream
 
 # Configure logging
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -128,7 +129,7 @@ async def _passthrough(request: Request, body_bytes: bytes, body: dict, headers:
 
         async def _stream():
             try:
-                async for chunk in resp.aiter_bytes():
+                async for chunk in rewrite_sse_stream(resp.aiter_bytes()):
                     yield chunk
             finally:
                 await resp.aclose()
@@ -152,11 +153,28 @@ async def _passthrough(request: Request, body_bytes: bytes, body: dict, headers:
         resp = await forward_to_litellm(
             "/v1/messages", "POST", headers, body_bytes, stream=False
         )
+        content_type = resp.headers.get("content-type", "application/json")
+        content = resp.content
+        # Normalize usage so Anthropic-shape clients (e.g. Claude Code's HUD)
+        # always see the cache_* fields. Skip if the upstream returned a
+        # non-JSON error or an unexpected shape.
+        if "json" in content_type.lower() and resp.status_code == 200 and content:
+            try:
+                data = json.loads(content)
+                if isinstance(data, dict) and isinstance(data.get("usage"), dict):
+                    normalize_anthropic_usage(data["usage"])
+                    content = json.dumps(data).encode("utf-8")
+            except (json.JSONDecodeError, ValueError):
+                pass
+        response_headers = {
+            k: v for k, v in resp.headers.items()
+            if k.lower() not in ("content-length", "transfer-encoding", "connection")
+        }
         return Response(
-            content=resp.content,
+            content=content,
             status_code=resp.status_code,
-            headers=dict(resp.headers),
-            media_type=resp.headers.get("content-type", "application/json"),
+            headers=response_headers,
+            media_type=content_type,
         )
 
 

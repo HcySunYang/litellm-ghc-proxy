@@ -285,6 +285,20 @@ def openai_response_to_anthropic(resp: dict[str, Any]) -> dict[str, Any]:
 
     finish = _FINISH_REASON_MAP.get(choice.get("finish_reason") or "", "end_turn")
     usage = resp.get("usage") or {}
+    # Anthropic clients (e.g. Claude Code HUD) read cache_* fields directly to
+    # compute context usage; OpenAI-shape upstreams (Copilot) don't report
+    # them, so we always include 0s. If the upstream did happen to surface
+    # cache info under any of the known synonyms, prefer that.
+    cache_creation = (
+        usage.get("cache_creation_input_tokens")
+        or usage.get("prompt_cache_miss_tokens")
+        or 0
+    )
+    cache_read = (
+        usage.get("cache_read_input_tokens")
+        or usage.get("prompt_cache_hit_tokens")
+        or 0
+    )
     return {
         "id": resp.get("id", "msg_unknown"),
         "type": "message",
@@ -296,5 +310,7 @@ def openai_response_to_anthropic(resp: dict[str, Any]) -> dict[str, Any]:
         "usage": {
             "input_tokens": usage.get("prompt_tokens", 0),
             "output_tokens": usage.get("completion_tokens", 0),
+            "cache_creation_input_tokens": cache_creation,
+            "cache_read_input_tokens": cache_read,
         },
     }
