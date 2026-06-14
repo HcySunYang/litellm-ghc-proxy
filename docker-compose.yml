@@ -26,7 +26,7 @@ services:
       - litellm-net
 
   ghc-proxy:
-    image: litellm/litellm:v1.82.3-stable
+    image: litellm/litellm:v1.87.2
     container_name: litellm-proxy
     restart: unless-stopped
     ports:

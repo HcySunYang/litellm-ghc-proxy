@@ -40,6 +40,27 @@ model_list:
       extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   # ── Claude Models ──────────────────────────────────────────
+
+  # Claude Opus 4.8 aliases — route to best available (4.6 1M)
+  - model_name: claude-opus-4.8
+    litellm_params:
+      model: github_copilot/claude-opus-4.6-1m
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: claude-opus-4-8
+    litellm_params:
+      model: github_copilot/claude-opus-4.6-1m
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: claude-opus-4.8-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.6-1m
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: claude-opus-4-8-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.6-1m
+      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
   # Claude Code's model picker only exposes Opus 4.7, but GitHub Copilot does
   # not yet offer a 1M-context variant of 4.7. Users who want a long-context
   # Opus need 4.6 1M, so we route ALL `claude-opus-4-7` / `claude-opus-4.7`
