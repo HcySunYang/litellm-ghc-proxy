@@ -1,9 +1,9 @@
-# GitHub Copilot Models Available
-# Generated on Tue Feb  3 22:10:15 CST 2026
-# Usage: Copy the desired models to your copilot-config.yaml
+# GitHub Copilot Models Configuration
+# Updated: 2026-06-17
 #
-# NOTE: Uses Copilot-Integration-Id "copilot-developer-cli" with
-# X-GitHub-Api-Version "2025-05-01" to enable 1M context models.
+# NOTE: As of June 2026, all Claude Opus models (4.6, 4.7, 4.8) natively
+# support 1M context (936K prompt). The separate "-1m" model variants have
+# been retired. Thinking/reasoning is controlled via request parameters.
 
 # Showing all models (enabled and unconfigured)
 litellm_settings:
@@ -13,127 +13,114 @@ general_settings:
   database_url: postgresql://litellm:litellm@postgres:5432/litellm
 
 model_list:
-  # ── 1M Context Model ──────────────────────────────────────
-  - model_name: claude-opus-4.6-1m
-    litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-    # Claude Opus 4.6 1M (Anthropic) - enabled
-    # Max tokens: 64000, Context: 1000000, Max prompt: 936000
-
-  # Aliases for Claude Code client
-  - model_name: claude-opus-4-6-1m
-    litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-
-  # Claude Code's model picker only lists Opus 4.7 1M, but GHC does not yet
-  # offer a 1M-context variant of 4.7 — map the 4.7 1M aliases to 4.6 1M.
-  - model_name: claude-opus-4-7-1m
-    litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-
-  - model_name: claude-opus-4.7-1m
-    litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-
-  # ── Claude Models ──────────────────────────────────────────
-
-  # Claude Opus 4.8 aliases — route to best available (4.6 1M)
+  # ── Claude Opus 4.8 ────────────────────────────────────────
   - model_name: claude-opus-4.8
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      model: github_copilot/claude-opus-4.8
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-4-8
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      model: github_copilot/claude-opus-4.8
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-4.8-1m
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      model: github_copilot/claude-opus-4.8
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-4-8-1m
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-  # Claude Code's model picker only exposes Opus 4.7, but GitHub Copilot does
-  # not yet offer a 1M-context variant of 4.7. Users who want a long-context
-  # Opus need 4.6 1M, so we route ALL `claude-opus-4-7` / `claude-opus-4.7`
-  # aliases (with or without the `-1m` / `[1m]` suffix) to `claude-opus-4.6-1m`.
-  # Claude Code 2.1.x strips the `[1m]` suffix before sending, so the dotted/
-  # dashed names below are the only ones the proxy actually receives.
+      model: github_copilot/claude-opus-4.8
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  # ── Claude Opus 4.7 ────────────────────────────────────────
   - model_name: claude-opus-4.7
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      model: github_copilot/claude-opus-4.7
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-4-7
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      model: github_copilot/claude-opus-4.7
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
+  - model_name: claude-opus-4.7-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.7
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: claude-opus-4-7-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.7
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  # ── Claude Opus 4.6 ────────────────────────────────────────
   - model_name: claude-opus-4.6
     litellm_params:
       model: github_copilot/claude-opus-4.6
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-    # Claude Opus 4.6 (Anthropic) - enabled
-    # Max tokens: 64000, Context: 200000
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-4-6
     litellm_params:
-      model: github_copilot/claude-opus-4.6-1m
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-    # Alias: Claude Code sends "claude-opus-4-6" when configured with opus[1m]
+      model: github_copilot/claude-opus-4.6
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  # Legacy -1m aliases → now just claude-opus-4.6 (1M is native)
+  - model_name: claude-opus-4.6-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.6
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: claude-opus-4-6-1m
+    litellm_params:
+      model: github_copilot/claude-opus-4.6
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-4.5
     litellm_params:
       model: github_copilot/claude-opus-4.5
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # Claude Opus 4.5 (Anthropic) - enabled
     # Max tokens: 32000, Context: 200000
 
   - model_name: claude-sonnet-4.5
     litellm_params:
       model: github_copilot/claude-sonnet-4.5
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # Claude Sonnet 4.5 (Anthropic) - enabled
     # Max tokens: 32000, Context: 200000
 
   - model_name: claude-sonnet-4.6
     litellm_params:
       model: github_copilot/claude-sonnet-4.6
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # Claude Sonnet 4.6 (Anthropic) - enabled
     # Max tokens: 32000, Context: 200000
 
   - model_name: claude-sonnet-4
     litellm_params:
       model: github_copilot/claude-sonnet-4
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # Claude Sonnet 4 (Anthropic) - enabled
     # Max tokens: 16000, Context: 216000
 
   - model_name: claude-haiku-4.5
     litellm_params:
       model: github_copilot/claude-haiku-4.5
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # Claude Haiku 4.5 (Anthropic) - enabled
     # Max tokens: 64000, Context: 200000
 
   - model_name: claude-haiku-4-5-20251001
     litellm_params:
       model: github_copilot/claude-haiku-4.5
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
   - model_name: claude-opus-41
     litellm_params:
       model: github_copilot/claude-opus-41
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # Claude Opus 4.1 (Anthropic) - enabled
     # Max tokens: 16000, Context: 80000
 
@@ -141,112 +128,112 @@ model_list:
   - model_name: gpt-5-mini
     litellm_params:
       model: github_copilot/gpt-5-mini
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5 mini (Azure OpenAI) - enabled
     # Max tokens: 64000, Context: 264000
 
   - model_name: gpt-5.1
     litellm_params:
       model: github_copilot/gpt-5.1
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.1 (OpenAI) - enabled
     # Max tokens: 64000, Context: 264000
 
   - model_name: gpt-5.1-codex
     litellm_params:
       model: github_copilot/gpt-5.1-codex
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.1-Codex (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.1-codex-max
     litellm_params:
       model: github_copilot/gpt-5.1-codex-max
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.1-Codex-Max (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.1-codex-mini
     litellm_params:
       model: github_copilot/gpt-5.1-codex-mini
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.1-Codex-Mini (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.2
     litellm_params:
       model: github_copilot/gpt-5.2
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.2 (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.2-codex
     litellm_params:
       model: github_copilot/gpt-5.2-codex
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.2-Codex (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.3-codex
     litellm_params:
       model: github_copilot/gpt-5.3-codex
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.3-Codex (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.4
     litellm_params:
       model: github_copilot/gpt-5.4
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.4 (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.4-mini
     litellm_params:
       model: github_copilot/gpt-5.4-mini
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.4 mini (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-5.5
     litellm_params:
       model: github_copilot/gpt-5.5
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.5 (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
 
   - model_name: gpt-4.1
     litellm_params:
       model: github_copilot/gpt-4.1
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-4.1 (Azure OpenAI) - enabled
     # Max tokens: 16384, Context: 128000
 
   - model_name: gpt-4o
     litellm_params:
       model: github_copilot/gpt-4o
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-4o (Azure OpenAI) - enabled
     # Max tokens: 4096, Context: 128000
 
   - model_name: gpt-4o-mini
     litellm_params:
       model: github_copilot/gpt-4o-mini
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-4o mini (Azure OpenAI) - enabled
     # Max tokens: 4096, Context: 128000
 
   - model_name: gpt-4
     litellm_params:
       model: github_copilot/gpt-4
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT 4 (Azure OpenAI) - enabled
     # Max tokens: 4096, Context: 32768
 
   - model_name: gpt-3.5-turbo
     litellm_params:
       model: github_copilot/gpt-3.5-turbo
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT 3.5 Turbo (Azure OpenAI) - enabled
     # Max tokens: 4096, Context: 16384
 
@@ -254,9 +241,22 @@ model_list:
   - model_name: gemini-2.5-pro
     litellm_params:
       model: github_copilot/gemini-2.5-pro
-      extra_headers: {"copilot-integration-id": "copilot-developer-cli", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
-    # Gemini 2.5 Pro (Google) - enabled
-    # Max tokens: 64000, Context: 128000
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: gemini-3.1-pro-preview
+    litellm_params:
+      model: github_copilot/gemini-3.1-pro-preview
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: gemini-3.5-flash
+    litellm_params:
+      model: github_copilot/gemini-3.5-flash
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+
+  - model_name: gpt-5.4-nano
+    litellm_params:
+      model: github_copilot/gpt-5.4-nano
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
 
 # To use these models:
 # 1. Copy desired model entries to your copilot-config.yaml
