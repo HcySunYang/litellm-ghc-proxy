@@ -201,6 +201,31 @@ model_list:
       extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
     # GPT-5.5 (OpenAI) - enabled
     # Max tokens: 128000, Context: 400000
+    # NOTE: Responses API only (/responses), not available via /chat/completions
+
+  - model_name: gpt-5.6-luna
+    litellm_params:
+      model: github_copilot/gpt-5.6-luna
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+    # GPT-5.6 Luna (OpenAI) - enabled
+    # Max tokens: 128000, Context: 1050000
+    # NOTE: Responses API only (/responses), not available via /chat/completions
+
+  - model_name: gpt-5.6-sol
+    litellm_params:
+      model: github_copilot/gpt-5.6-sol
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+    # GPT-5.6 Sol (OpenAI) - enabled
+    # Max tokens: 128000, Context: 1050000
+    # NOTE: Responses API only (/responses), not available via /chat/completions
+
+  - model_name: gpt-5.6-terra
+    litellm_params:
+      model: github_copilot/gpt-5.6-terra
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+    # GPT-5.6 Terra (OpenAI) - enabled
+    # Max tokens: 128000, Context: 1050000
+    # NOTE: Responses API only (/responses), not available via /chat/completions
 
   - model_name: gpt-4.1
     litellm_params:

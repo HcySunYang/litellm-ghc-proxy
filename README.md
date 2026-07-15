@@ -7,7 +7,7 @@
 | 厂商 | 模型 |
 |------|------|
 | **Anthropic** | Claude Opus 4.7 / 4.6 / 4.5 / 4.1, Claude Sonnet 4.6 / 4.5 / 4, Claude Haiku 4.5 |
-| **OpenAI** | GPT-5.2 / 5.1 / 5 / 5-mini, GPT-5.1-Codex / Codex-Max, GPT-5.2-Codex, GPT-4.1 / 4o / 4o-mini / 4, GPT-3.5-turbo |
+| **OpenAI** | GPT-5.6-Luna / Sol / Terra, GPT-5.5, GPT-5.4 / 5.4-mini, GPT-5.3-Codex, GPT-5.2 / 5.2-Codex, GPT-5.1 / 5.1-Codex / Codex-Max, GPT-5 / 5-mini, GPT-4.1 / 4o / 4o-mini / 4, GPT-3.5-turbo |
 | **Google** | Gemini 2.5 Pro |
 
 ## 前置要求
@@ -106,7 +106,10 @@ curl -X POST http://localhost:4000/chat/completions \
 
 - **Base URL:** `http://localhost:4000`
 - **Chat Completions:** `POST /chat/completions`
+- **Responses API:** `POST /responses`
 - **认证方式:** `Authorization: Bearer <LITELLM_MASTER_KEY>`
+
+> **注意：** GPT-5.5 及更新的模型（包括 GPT-5.6-Luna/Sol/Terra）仅支持 Responses API（`/responses` 端点），不支持 `/chat/completions`。Codex CLI 等已支持 Responses API 的客户端可直接使用。
 
 可以在任何支持 OpenAI API 格式的客户端/工具中使用，只需将 base URL 指向 `http://localhost:4000`。
 
