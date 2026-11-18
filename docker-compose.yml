@@ -1,5 +1,11 @@
 name: "litellm"
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 networks:
   litellm-net:
     driver: bridge
@@ -9,8 +15,10 @@ services:
     build: ./middleware
     container_name: litellm-middleware
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:5000"
+      - "4000:5000"
     environment:
       - LITELLM_URL=http://ghc-proxy:4000
       - SEARXNG_URL=http://searxng:8080
@@ -29,8 +37,9 @@ services:
     image: litellm/litellm:v1.87.2
     container_name: litellm-proxy
     restart: unless-stopped
-    ports:
-      - "4000:4000"
+    logging: *default-logging
+    expose:
+      - "4000"
     environment:
       - LOG_LEVEL=INFO
       - ENABLE_NETWORK_MONITOR=true
@@ -54,6 +63,7 @@ services:
     image: searxng/searxng:latest
     container_name: litellm-searxng
     restart: unless-stopped
+    logging: *default-logging
     expose:
       - "8080"
     environment:
@@ -68,6 +78,7 @@ services:
     image: postgres:16
     container_name: litellm-postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: litellm
       POSTGRES_PASSWORD: litellm
