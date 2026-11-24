@@ -19,6 +19,13 @@ from websockets.asyncio.client import connect as websocket_connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus, WebSocketException
 
 from .codex_models import build_codex_models_response
+from .responses_bridge import (
+    chat_completion_to_responses_object,
+    format_responses_sse_event,
+    is_chat_completions_responses_model,
+    iter_responses_events_from_chat_sse,
+    responses_request_to_chat_completions,
+)
 from .tools import extract_server_tools, SERVER_TOOL_PATTERNS
 from .proxy import (
     LITELLM_URL,
@@ -174,14 +181,126 @@ async def _deny_websocket(
     )
 
 
+async def _handle_bridged_responses_websocket(
+    websocket: WebSocket,
+    default_model: str,
+    requested_subprotocols: list[str],
+) -> None:
+    """Serve Responses API WebSocket turns via `/chat/completions` for bridged models."""
+    await websocket.accept(
+        subprotocol=requested_subprotocols[0] if requested_subprotocols else None
+    )
+    base_headers = dict(_websocket_headers(websocket))
+    base_headers["content-type"] = "application/json"
+    base_headers["accept"] = "text/event-stream"
+
+    try:
+        while True:
+            ws_msg = await websocket.receive()
+            if ws_msg["type"] == "websocket.disconnect":
+                return
+            raw_payload = ws_msg.get("text")
+            if raw_payload is None and ws_msg.get("bytes") is not None:
+                raw_payload = ws_msg["bytes"].decode("utf-8", errors="replace")
+            if not raw_payload:
+                continue
+
+            try:
+                frame = json.loads(raw_payload)
+            except json.JSONDecodeError:
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "error": {
+                                "type": "invalid_request_error",
+                                "message": "Invalid JSON WebSocket frame",
+                            },
+                        }
+                    )
+                )
+                continue
+
+            if not isinstance(frame, dict) or frame.get("type") != "response.create":
+                continue
+
+            req_body = {k: v for k, v in frame.items() if k not in ("type", "response")}
+            if isinstance(frame.get("response"), dict):
+                req_body.update(frame["response"])
+            req_body.setdefault("model", default_model)
+
+            chat_body, bridge_ctx = responses_request_to_chat_completions(
+                req_body, stream=True
+            )
+            chat_bytes = json.dumps(chat_body).encode("utf-8")
+            resp = await forward_to_litellm(
+                "/chat/completions",
+                "POST",
+                base_headers,
+                chat_bytes,
+                stream=True,
+            )
+            try:
+                if resp.status_code != 200:
+                    raw_err = await resp.aread()
+                    if resp.status_code == 413:
+                        status, error_payload = _responses_size_error_payload(
+                            raw_err,
+                            len(raw_payload.encode("utf-8")),
+                            len(chat_bytes),
+                        )
+                        logger.warning(
+                            "Upstream WebSocket turn rejected request size: "
+                            "request_bytes=%d forwarded_bytes=%d code=%s",
+                            len(raw_payload.encode("utf-8")),
+                            len(chat_bytes),
+                            error_payload["error"]["code"],
+                        )
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "error",
+                                    "status": status,
+                                    "error": error_payload["error"],
+                                }
+                            )
+                        )
+                        continue
+                    try:
+                        err_json = json.loads(raw_err)
+                        err_obj = (
+                            err_json.get("error")
+                            if isinstance(err_json, dict)
+                            and isinstance(err_json.get("error"), dict)
+                            else {"message": raw_err.decode("utf-8", errors="replace")}
+                        )
+                    except json.JSONDecodeError:
+                        err_obj = {
+                            "message": raw_err.decode("utf-8", errors="replace")
+                        }
+                    await websocket.send_text(
+                        json.dumps({"type": "error", "error": err_obj})
+                    )
+                    continue
+
+                async for event in iter_responses_events_from_chat_sse(
+                    resp.aiter_lines(), bridge_ctx
+                ):
+                    await websocket.send_text(
+                        json.dumps(event, ensure_ascii=False)
+                    )
+            finally:
+                await resp.aclose()
+                if hasattr(resp, "_client"):
+                    await resp._client.aclose()
+    except WebSocketDisconnect:
+        return
+
+
 @app.websocket("/responses")
 @app.websocket("/v1/responses")
 async def responses_websocket(websocket: WebSocket):
     """Proxy Responses API WebSocket traffic bidirectionally to LiteLLM."""
-    upstream_url = _websocket_upstream_url(
-        websocket.url.path,
-        websocket.url.query,
-    )
     requested_subprotocols = [
         protocol.strip()
         for protocol in websocket.headers.get(
@@ -189,6 +308,19 @@ async def responses_websocket(websocket: WebSocket):
         ).split(",")
         if protocol.strip()
     ]
+    query_model = websocket.query_params.get("model")
+    if is_chat_completions_responses_model(query_model):
+        await _handle_bridged_responses_websocket(
+            websocket,
+            str(query_model),
+            requested_subprotocols,
+        )
+        return
+
+    upstream_url = _websocket_upstream_url(
+        websocket.url.path,
+        websocket.url.query,
+    )
 
     try:
         async with websocket_connect(
@@ -294,9 +426,203 @@ async def responses_websocket(websocket: WebSocket):
             )
 
 
+def _responses_size_error_payload(
+    raw_error: bytes, request_bytes: int, forwarded_bytes: int
+) -> tuple[int, dict]:
+    try:
+        payload = json.loads(raw_error)
+    except (ValueError, UnicodeDecodeError):
+        payload = None
+    if (
+        isinstance(payload, dict)
+        and isinstance(payload.get("error"), dict)
+        and payload["error"].get("code") == "context_length_exceeded"
+    ):
+        # Codex recognizes explicit token-limit errors on HTTP 400, not HTTP 413.
+        return 400, payload
+    return 413, {
+        "error": {
+            "type": "invalid_request_error",
+            "code": "request_too_large",
+            "param": "input",
+            "message": (
+                "The upstream API rejected the request size (HTTP 413): "
+                f"client request {request_bytes} bytes, forwarded request "
+                f"{forwarded_bytes} bytes. This limit is independent of the model's "
+                "token context window. Reduce image file sizes, remove large "
+                "attachments, or shorten tool outputs/history before retrying. "
+                "Increasing model_context_window will not help."
+            ),
+        }
+    }
+
+
+async def _build_responses_size_error(
+    request: Request,
+    resp,
+    path: str,
+    request_bytes: int,
+    is_streaming: bool,
+    forwarded_bytes: int | None = None,
+) -> JSONResponse:
+    if forwarded_bytes is None:
+        forwarded_bytes = request_bytes
+    try:
+        raw_error = await resp.aread()
+    finally:
+        if not resp.is_closed:
+            await resp.aclose()
+        if hasattr(resp, "_client"):
+            await resp._client.aclose()
+    status, payload = _responses_size_error_payload(
+        raw_error, request_bytes, forwarded_bytes
+    )
+    logger.warning(
+        "Upstream Responses request rejected request size: "
+        "path=%s request_bytes=%d forwarded_bytes=%d streaming=%s code=%s",
+        path,
+        request_bytes,
+        forwarded_bytes,
+        is_streaming,
+        payload["error"]["code"],
+    )
+    response = JSONResponse(
+        status_code=status,
+        content=payload,
+    )
+    _copy_upstream_headers(response, resp, request=request)
+    response.headers["content-type"] = "application/json"
+    return response
+
+
+async def _proxy_bridged_responses_request(
+    request: Request,
+    path: str,
+    raw_body: bytes,
+    payload: dict,
+    headers: dict[str, str],
+) -> Response:
+    is_streaming = payload.get("stream") is True or (
+        payload.get("stream") is None
+        and "text/event-stream" in headers.get("accept", "").lower()
+    )
+    chat_body, bridge_ctx = responses_request_to_chat_completions(
+        payload, stream=is_streaming
+    )
+    forward_headers = dict(headers)
+    forward_headers["content-type"] = "application/json"
+    forward_headers["accept"] = (
+        "text/event-stream" if is_streaming else "application/json"
+    )
+
+    logger.info(
+        "Bridging POST /%s for model=%s via /chat/completions (streaming=%s, effort=%s)",
+        path,
+        bridge_ctx.model,
+        is_streaming,
+        chat_body.get("reasoning_effort"),
+    )
+
+    chat_bytes = json.dumps(chat_body).encode("utf-8")
+    resp = await forward_to_litellm(
+        "/chat/completions",
+        "POST",
+        forward_headers,
+        chat_bytes,
+        stream=is_streaming,
+    )
+
+    if resp.status_code == 413:
+        return await _build_responses_size_error(
+            request, resp, path, len(raw_body), is_streaming, len(chat_bytes)
+        )
+
+    if resp.status_code != 200:
+        if is_streaming:
+            err_content = await resp.aread()
+            await resp.aclose()
+            if hasattr(resp, "_client"):
+                await resp._client.aclose()
+        else:
+            err_content = resp.content
+        error_response = Response(
+            content=err_content,
+            status_code=resp.status_code,
+        )
+        return _copy_upstream_headers(error_response, resp, request=request)
+
+    if is_streaming:
+
+        async def _stream_responses_sse():
+            try:
+                async for event in iter_responses_events_from_chat_sse(
+                    resp.aiter_lines(), bridge_ctx
+                ):
+                    yield format_responses_sse_event(event)
+            finally:
+                await resp.aclose()
+                if hasattr(resp, "_client"):
+                    await resp._client.aclose()
+
+        stream_response = StreamingResponse(
+            _stream_responses_sse(),
+            status_code=200,
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+        for key, value in resp.headers.multi_items():
+            if key.lower() in {
+                "content-type",
+                "content-length",
+                "content-encoding",
+                "transfer-encoding",
+                "connection",
+                "cache-control",
+            }:
+                continue
+            stream_response.headers.append(key, value)
+        return stream_response
+
+    chat_data = resp.json()
+    responses_data = chat_completion_to_responses_object(chat_data, bridge_ctx)
+    json_response = JSONResponse(status_code=200, content=responses_data)
+    for key, value in resp.headers.multi_items():
+        if key.lower() in {
+            "content-type",
+            "content-length",
+            "content-encoding",
+            "transfer-encoding",
+            "connection",
+        }:
+            continue
+        json_response.headers.append(key, value)
+    return json_response
+
+
 async def _proxy_raw_request(request: Request, path: str) -> Response:
     body = await request.body()
     headers = dict(request.headers)
+
+    if (
+        request.method == "POST"
+        and path in ("responses", "v1/responses")
+        and body
+    ):
+        try:
+            payload = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            payload = None
+        if isinstance(payload, dict) and is_chat_completions_responses_model(
+            payload.get("model")
+        ):
+            return await _proxy_bridged_responses_request(
+                request, path, body, payload, headers
+            )
+
     full_path = f"/{path}"
     if request.url.query:
         full_path += f"?{request.url.query}"
@@ -323,36 +649,9 @@ async def _proxy_raw_request(request: Request, path: str) -> Response:
             "v1/responses/compact",
         )
     ):
-        # Codex only recognizes context_length_exceeded on HTTP 400.
-        logger.warning(
-            "Upstream Responses request exceeded the payload limit: "
-            "path=%s request_bytes=%d streaming=%s",
-            path,
-            len(body),
-            is_streaming,
+        return await _build_responses_size_error(
+            request, resp, path, len(body), is_streaming
         )
-        await resp.aclose()
-        if hasattr(resp, "_client"):
-            await resp._client.aclose()
-        response = JSONResponse(
-            status_code=400,
-            content={
-                "error": {
-                    "type": "invalid_request_error",
-                    "code": "context_length_exceeded",
-                    "param": "input",
-                    "message": (
-                        "The upstream Responses API rejected this request because "
-                        "the serialized conversation is too large (HTTP 413). "
-                        "Compact the conversation or reduce large tool outputs, "
-                        "then retry."
-                    ),
-                }
-            },
-        )
-        _copy_upstream_headers(response, resp, request=request)
-        response.headers["content-type"] = "application/json"
-        return response
 
     if is_streaming:
 

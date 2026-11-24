@@ -8,7 +8,7 @@
 |------|------|
 | **Anthropic** | Claude Opus 4.7 / 4.6 / 4.5 / 4.1, Claude Sonnet 4.6 / 4.5 / 4, Claude Haiku 4.5 |
 | **OpenAI** | GPT-6.2 Sol, GPT-6.1 Sol, GPT-6 Astra, GPT-5.6-Luna / Sol / Terra, GPT-5.5, GPT-5.4 / 5.4-mini, GPT-5.3-Codex, GPT-5.2 / 5.2-Codex, GPT-5.1 / 5.1-Codex / Codex-Max, GPT-5 / 5-mini, GPT-4.1 / 4o / 4o-mini / 4, GPT-3.5-turbo |
-| **Google** | Gemini 2.5 Pro |
+| **Google** | Gemini 4 Neon, Gemini 4 Carbon, Gemini 3.5 Flash, Gemini 3.1 Pro Preview, Gemini 2.5 Pro |
 
 ## 前置要求
 
@@ -205,15 +205,16 @@ docker compose restart ghc-proxy
 
 除了 Claude Code，本项目也支持 [OpenAI Codex CLI](https://github.com/openai/codex) 通过同一个代理访问模型。
 
-> **长会话限制：** Copilot 的 Responses API 请求体最多为 32 MiB，这与模型的
-> token 上下文窗口是两个独立限制。大量工具输出、图片或加密推理记录可能先触发
-> HTTP 413，上游错误文本为 `failed to parse request`。中间件将这类错误转换为
-> Codex 可识别的 `context_length_exceeded`，让客户端按上下文超限处理；代理不会
-> 自行截断会话。已超限的旧会话可先执行 `/compact` 再重试；若单条输入或工具输出
-> 本身过大，需要减少该输入，或创建新会话。
+> **长会话与附件限制：** 请求体/图片大小限制与模型的 token 上下文窗口是两个
+> 独立限制，具体限制取决于上游模型及 API。图片、工具输出或加密推理记录可能在
+> token 未满时就触发 HTTP 413。中间件返回 `request_too_large` 及客户端/转发请求
+> 的字节数，不再将普通 413 误报为 `context_length_exceeded`；只有上游明确返回该
+> token 超限代码时才按上下文超限处理。请缩小附件、减少工具输出或会话历史后重试；
+> 调大 `model_context_window` 无法绕过字节限制，代理不会自行截断会话。
 
-在另一台机器配置 GPT-6 Astra 客户端，请参阅
-[Codex CLI + GPT-6 Astra 配置文档](docs/codex-gpt-6-astra.md)。
+在另一台机器配置客户端，请参阅：
+- [Codex（CLI / App / IDE 扩展）+ Gemini 4 Carbon / Neon 配置文档](docs/codex-gemini-4-carbon.md)
+- [Codex CLI + GPT-6 Astra 配置文档](docs/codex-gpt-6-astra.md)
 
 ### 1. 安装 Codex CLI
 
@@ -249,7 +250,7 @@ command = "printenv"
 args = ["LITELLM_API_KEY"]
 ```
 
-> `model` 可替换为 `copilot-config.yaml` 中的任何模型名，如 `gpt-6.2-sol`、`gpt-6.1-sol`、`gpt-6-astra`、`gpt-5.4`、`gpt-5.3-codex`、`claude-sonnet-4` 等。
+> `model` 可替换为 `copilot-config.yaml` 中的任何模型名，如 `gpt-6.2-sol`、`gpt-6.1-sol`、`gpt-6-astra`、`gemini-4-carbon`、`gpt-5.4`、`gpt-5.3-codex`、`claude-sonnet-4` 等。
 
 > **关于 context window：** 代理会在 Codex 请求
 > `/models?client_version=...` 时返回 Codex 专用模型目录。GPT-5.6-Luna /
@@ -278,6 +279,22 @@ args = ["LITELLM_API_KEY"]
 > `medium`，支持 `low`、`medium`、`high`、`xhigh`、`max` 五档，不提供 `ultra`。
 > 沿用客户端兼容规则：`max` 仅向 Codex 0.144.0 及更新客户端展示，直接调用
 > Responses API 不受此版本限制；Codex 中可设置 `model_reasoning_effort = "max"`。
+
+> **Gemini 4 Carbon：** 将上述 `model` 设为 `gemini-4-carbon`。上游报告的原始
+> context 为 `1000000`，最大输入为 `936000`，最大输出为 `64000`；代理将 Codex
+> 有效窗口设为 `930000`（93%）、自动压缩阈值设为 `900000`。默认推理级别为
+> `medium`，支持 `low`、`medium`、`high` 三档推理级别（最高档位为 `high`）。由于
+> Copilot 上游仅为 `gemini-4-carbon` 开放 `/chat/completions`，middleware 会自动
+> 将 `/responses` 请求（含流式 SSE、工具调用与 freeform `apply_patch`）桥接到
+> `/chat/completions`，因此 Codex CLI / Codex App / IDE 扩展可直接保持
+> `wire_api = "responses"` 使用。
+
+> **Gemini 4 Neon：** 将 `model` 设为 `gemini-4-neon`。原始 context 为
+> `1048576`，最大输入为 `983040`，最大输出为 `65536`；Codex 有效窗口为
+> `975175`（93%），自动压缩阈值为 `950000`。默认推理级别为 `medium`，
+> 支持 `low`、`medium`、`high`、`xhigh` 四档（最高为 `xhigh`）。
+> 与 Carbon 一样，通过 middleware 桥接 Responses API、工具调用和图片输入；
+> Codex 仍使用 `wire_api = "responses"`，无需本地模型目录覆盖。
 
 已有部署更新后，需要重新加载模型配置并重建模型目录所在的 middleware：
 

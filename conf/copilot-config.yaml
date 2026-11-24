@@ -288,6 +288,26 @@ model_list:
     # Max tokens: 4096, Context: 16384
 
   # ── Other Models ───────────────────────────────────────────
+  - model_name: gemini-4-neon
+    litellm_params:
+      model: github_copilot/gemini-4-neon
+      allowed_openai_params: ["reasoning_effort"]
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+    # Gemini 4 Neon (Google) - enabled
+    # Max tokens: 65536, Context: 1048576, Max prompt: 983040
+    # Reasoning effort: low, medium, high, xhigh
+    # NOTE: Chat Completions upstream (/chat/completions); middleware bridges /responses for Codex
+
+  - model_name: gemini-4-carbon
+    litellm_params:
+      model: github_copilot/gemini-4-carbon
+      allowed_openai_params: ["reasoning_effort"]
+      extra_headers: {"copilot-integration-id": "vscode-chat", "x-github-api-version": "2025-05-01", "openai-intent": "conversation-agent"}
+    # Gemini 4 Carbon (Google) - enabled
+    # Max tokens: 64000, Context: 1000000, Max prompt: 936000
+    # Reasoning effort: low, medium, high
+    # NOTE: Chat Completions upstream (/chat/completions); middleware bridges /responses for Codex
+
   - model_name: gemini-2.5-pro
     litellm_params:
       model: github_copilot/gemini-2.5-pro
